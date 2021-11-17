@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 
 const db = require("./dbConnectExec.js");
 const jnuggetConfig = require("./config.js");
+const auth = require("./middleware/authenticate");
 
 const app = express();
 app.use(express.json());
@@ -23,8 +24,40 @@ app.get("/", (req, res) => {
 // app.post();
 // app.put();
 
-app.post("/contacts/login", async (req, res) => {
-  // console.log("/contacts/login called", req.body);
+app.post("/subscriptions", auth, async (req, res) => {
+  try {
+    let podcastFK = req.body.podcastFK;
+    // let date = req.body.date;
+    let date = new Date().toLocaleDateString();
+
+    if (!podcastFK || !date || Number.isNaN(Date.parse(date))) {
+      return res.status(400).send("bad request");
+    }
+    console.log("date", date);
+    // console.log("here is the listener", req.listener);
+
+    let insertQuery = `INSERT INTO Subscription(date, ListenerFK, PodcastFK)
+    OUTPUT Inserted.SubscriptionPK, inserted.date, inserted.PodcastFK
+    VALUES ('${date}', '${req.listener.ListenerPK}','${podcastFK}' )`;
+
+    let insertedSubscription = await db.executeQuery(insertQuery);
+    console.log("Inserted subscription:", insertedSubscription);
+
+    // res.send("here is the response");
+
+    res.status(201).send(insertedSubscription[0]);
+  } catch (err) {
+    console.log("error in POST /subscriptions", err);
+    res.status(500).send("error");
+  }
+});
+
+app.get("/listeners/me", auth, (req, res) => {
+  res.send(req.listener);
+});
+
+app.post("/listeners/login", async (req, res) => {
+  // console.log("/listeners/login called", req.body);
 
   // 1 data validation
 
@@ -39,14 +72,14 @@ app.post("/contacts/login", async (req, res) => {
   // 2 check that user exists in database
 
   let query = `SELECT *
-  FROM Contact
+  FROM Listener
   WHERE Email = '${email}'`;
 
   let result;
   try {
     result = await db.executeQuery(query);
   } catch (myError) {
-    console.log("Error is contacts/login", myError);
+    console.log("Error in listeners/login", myError);
     return res.status(500).send();
   }
   // console.log("results", result);
@@ -65,16 +98,16 @@ app.post("/contacts/login", async (req, res) => {
 
   // 4 generate token
 
-  let token = jwt.sign({ pk: user.ContactPK }, jnuggetConfig.JWT, {
+  let token = jwt.sign({ pk: user.ListenerPK }, jnuggetConfig.JWT, {
     expiresIn: "60 minutes",
   });
 
-  console.log("token:", token);
+  // console.log("token:", token);
 
   // 5 save token in DB and send response
-  let setTokenQuery = `UPDATE Contact
+  let setTokenQuery = `UPDATE Listener
   SET token = '${token}'
-  WHERE ContactPK = ${user.ContactPK}`;
+  WHERE ListenerPK = ${user.ListenerPK}`;
 
   try {
     await db.executeQuery(setTokenQuery);
@@ -85,7 +118,7 @@ app.post("/contacts/login", async (req, res) => {
         NameFirst: user.NameFirst,
         NameLast: user.NameLast,
         email: user.Email,
-        ContactPK: user.ContactPK,
+        ListenerPK: user.ListenerPK,
       },
     });
   } catch (myError) {
@@ -94,8 +127,8 @@ app.post("/contacts/login", async (req, res) => {
   }
 });
 
-app.post("/contacts", async (req, res) => {
-  // res.send("/contacts called");
+app.post("/Listeners", async (req, res) => {
+  // res.send("/Listeners called");
 
   // console.log("Request body", req.body);
 
@@ -112,7 +145,7 @@ app.post("/contacts", async (req, res) => {
   nameLast = nameLast.replace("'", "''");
 
   let emailCheckQuery = `SELECT email
-  FROM contact
+  FROM Listener
   WHERE email = '${email}'`;
 
   let existingUser = await db.executeQuery(emailCheckQuery);
@@ -125,7 +158,7 @@ app.post("/contacts", async (req, res) => {
 
   let hashedPassword = bcrypt.hashSync(password);
 
-  let insertQuery = `INSERT INTO contact(NameFirst, NameLast, Email, Password)
+  let insertQuery = `INSERT INTO Listener(NameFirst, NameLast, Email, Password)
   VALUES ('${nameFirst}','${nameLast}','${email}','${hashedPassword}')`;
 
   db.executeQuery(insertQuery)
@@ -133,18 +166,18 @@ app.post("/contacts", async (req, res) => {
       res.status(201).send();
     })
     .catch((err) => {
-      console.log("error in POST /contact", err);
+      console.log("error in POST /Listeners", err);
       res.status(500).send();
     });
 });
 
-app.get("/podcast", (req, res) => {
+app.get("/podcasts", (req, res) => {
   // get data from the database
   db.executeQuery(
     `SELECT *
   FROM Episode
   LEFT JOIN Podcast
-  On Podcast.PodcastPK = Episode.PodcastPK`
+  On Podcast.PodcastPK = Episode.PodcastFK`
   )
     .then((theResults) => {
       res.status(200).send(theResults);
@@ -155,7 +188,7 @@ app.get("/podcast", (req, res) => {
     });
 });
 
-app.get("/podcast/:pk", (req, res) => {
+app.get("/podcasts/:pk", (req, res) => {
   let pk = req.params.pk;
 
   //   console.log(pk);
@@ -163,7 +196,7 @@ app.get("/podcast/:pk", (req, res) => {
   let myQuery = `SELECT *
 FROM Episode
 LEFT JOIN Podcast
-On Podcast.PodcastPK = Episode.PodcastPK
+On Podcast.PodcastPK = Episode.PodcastFK
 WHERE EpisodePK = ${pk}`;
 
   db.executeQuery(myQuery)
