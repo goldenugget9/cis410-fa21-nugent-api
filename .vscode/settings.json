@@ -1,0 +1,4 @@
+{
+  "appService.defaultWebAppToDeploy": "/subscriptions/a94e299c-024a-441b-9bff-6eb2a448aaf7/resourceGroups/appsvc_linux_centralus/providers/Microsoft.Web/sites/CIS410-FA21-Nugent-API",
+  "appService.deploySubpath": "."
+}
