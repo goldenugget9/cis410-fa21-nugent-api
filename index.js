@@ -27,6 +27,27 @@ app.get("/", (req, res) => {
 // app.post();
 // app.put();
 
+app.post("/listeners/logout", auth, (req, res) => {
+  let query = `UPDATE listener
+  SET token = NULL
+  WHERE ListenerPK = ${req.listener.ListenerPK}`;
+
+  db.executeQuery(query)
+    .then(() => {
+      res.status(200).send();
+    })
+    .catch((err) => {
+      console.log("error in POST/", err);
+      res.status(500).send();
+    });
+});
+
+app.get("subscriptions/me", auth, async (req, res) => {
+  // get the ListenerPK
+  //query the database for users recorrds
+  // send user reviews back to them
+});
+
 app.post("/subscriptions", auth, async (req, res) => {
   try {
     let podcastFK = req.body.podcastFK;
