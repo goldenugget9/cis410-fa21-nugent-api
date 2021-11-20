@@ -200,7 +200,7 @@ app.post("/Listeners", async (req, res) => {
 
   db.executeQuery(insertQuery)
     .then(() => {
-      res.status(201).send();
+      res.status(201).send("Successfully added");
     })
     .catch((err) => {
       console.log("error in POST /Listeners", err);
