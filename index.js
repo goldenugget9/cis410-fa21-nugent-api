@@ -42,10 +42,23 @@ app.post("/listeners/logout", auth, (req, res) => {
     });
 });
 
-app.get("subscriptions/me", auth, async (req, res) => {
+app.get("/subscriptions/me", auth, async (req, res) => {
   // get the ListenerPK
+  // ListenerPK = req.listener.ListenerPK;
   //query the database for users recorrds
-  // send user reviews back to them
+  query = `SELECT *
+  FROM Subscription
+  WHERE listenerFK = ${req.listener.ListenerPK}`;
+  await db
+    .executeQuery(query)
+    // send user reviews back to them
+    .then((theResults) => {
+      res.status(200).send(theResults);
+    })
+    .catch((myError) => {
+      console.log(myError);
+      res.status(500).send();
+    });
 });
 
 app.post("/subscriptions", auth, async (req, res) => {
